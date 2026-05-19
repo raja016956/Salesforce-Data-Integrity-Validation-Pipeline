@@ -166,20 +166,19 @@ Potential future extensions include:
 
 ```bash
 .
-├── architecture/
 ├── data/
 ├── docs/
 ├── pipeline/
-│   ├── jira_client.py
-│   ├── pipeline.py
-│   ├── salesforce_client.py
-│   └── validator.py
 ├── scripts/
 ├── utils/
+│   └── __pycache__/
+├── .gitignore
+├── README.md
+├── Salesforce Project.pdf
+├── Salesforce Project_page-0001.jpg
+├── jira-automation
 ├── main.py
-├── requirements.txt
-├── .env.example
-└── README.md
+└── requirements.txt
 ```
 
 ---
