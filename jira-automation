@@ -1,0 +1,193 @@
+import os
+import requests
+import urllib.parse
+from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
+from utils.validator import is_valid_lead
+
+# -----------------------------
+# Load Environment Variables
+# -----------------------------
+load_dotenv()
+
+client_id = os.getenv("SF_CLIENT_ID")
+client_secret = os.getenv("SF_CLIENT_SECRET")
+login_url = os.getenv("SF_LOGIN_URL")
+
+jira_domain = os.getenv("JIRA_DOMAIN")
+jira_email = os.getenv("JIRA_EMAIL")
+jira_token = os.getenv("JIRA_API_TOKEN")
+jira_project = os.getenv("JIRA_PROJECT_KEY")
+
+# Safety check
+if not all([client_id, client_secret, login_url, jira_domain, jira_email, jira_token, jira_project]):
+    print("❌ ERROR: Missing environment variables in .env")
+    exit()
+
+
+# -----------------------------
+# Salesforce Authentication
+# -----------------------------
+def get_salesforce_session():
+
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret
+    }
+
+    response = requests.post(login_url, data=payload)
+    data = response.json()
+
+    if "access_token" not in data:
+        print("❌ Salesforce Login Failed")
+        exit()
+
+    headers = {
+        "Authorization": f"Bearer {data['access_token']}",
+        "Content-Type": "application/json"
+    }
+
+    return headers, data["instance_url"]
+
+
+# -----------------------------
+# Create Jira Ticket
+# -----------------------------
+def create_jira_bug(summary, description):
+
+    url = f"{jira_domain}/rest/api/3/issue"
+
+    auth = HTTPBasicAuth(jira_email, jira_token)
+
+    payload = {
+        "fields": {
+            "project": {"key": jira_project},
+            "summary": summary,
+            "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {"type": "text", "text": description}
+                        ]
+                    }
+                ]
+            },
+            "issuetype": {"name": "Task"}
+        }
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        auth=auth,
+        headers={"Accept": "application/json", "Content-Type": "application/json"}
+    )
+
+    if response.status_code == 201:
+        print(f"🐞 Jira Ticket Created: {summary}")
+    else:
+        print(f"❌ Jira Error {response.status_code}: {response.text}")
+
+
+# -----------------------------
+# Upsert Lead in Salesforce
+# -----------------------------
+def upsert_lead(lead_data, headers, instance_url):
+
+    # Validate lead
+    is_valid, message = is_valid_lead(lead_data)
+
+    if not is_valid:
+
+        print(f"⚠️ QA Validation Failed: {message}")
+
+        create_jira_bug(
+            summary=f"Lead Validation Failed - {lead_data.get('Email')}",
+            description=(
+                f"Lead Validation Error\n\n"
+                f"Name: {lead_data.get('FirstName')} {lead_data.get('LastName')}\n"
+                f"Company: {lead_data.get('Company')}\n"
+                f"Email: {lead_data.get('Email')}\n"
+                f"Issue: {message}"
+            )
+        )
+
+        return
+
+    # Check for duplicates using SOQL
+    query = f"SELECT Id FROM Lead WHERE Email = '{lead_data['Email']}'"
+    encoded_query = urllib.parse.quote(query)
+
+    query_url = f"{instance_url}/services/data/v59.0/query?q={encoded_query}"
+
+    check_res = requests.get(query_url, headers=headers).json()
+
+    # -----------------------------
+    # Update existing lead
+    # -----------------------------
+    if check_res.get("totalSize", 0) > 0:
+
+        lead_id = check_res["records"][0]["Id"]
+
+        url = f"{instance_url}/services/data/v59.0/sobjects/Lead/{lead_id}"
+
+        response = requests.patch(url, headers=headers, json=lead_data)
+
+        if response.status_code == 204:
+            print(f"🔄 Lead Updated: {lead_data['Email']} (ID: {lead_id})")
+        else:
+            print(f"❌ Update Error: {response.text}")
+
+    # -----------------------------
+    # Create new lead
+    # -----------------------------
+    else:
+
+        url = f"{instance_url}/services/data/v59.0/sobjects/Lead/"
+
+        response = requests.post(url, headers=headers, json=lead_data)
+
+        if response.status_code == 201:
+
+            lead_id = response.json().get("id")
+
+            print(f"✅ New Lead Created: {lead_data['Email']} (ID: {lead_id})")
+
+        else:
+            print(f"❌ Creation Error: {response.text}")
+
+
+# -----------------------------
+# Main Execution
+# -----------------------------
+if __name__ == "__main__":
+
+    print("🚀 Starting Salesforce Data Integrity Pipeline")
+
+    headers, instance_url = get_salesforce_session()
+
+    test_leads = [
+
+        {
+            "FirstName": "joe",
+            "LastName": "Doey",
+            "Company": "Business Solutions Ltd",
+            "Email": "joe.doey@example.com"
+        },
+
+        {
+            "FirstName": "Bad",
+            "LastName": "Data",
+            "Company": "Fail Co",
+            "Email": "not-an-email"
+        }
+
+    ]
+
+    for lead in test_leads:
+
+        upsert_lead(lead, headers, instance_url)
