@@ -25,19 +25,23 @@ The pipeline integrates:
 
 ---
 
-# Workflow Architecture
+# 🏗️ Pipeline Architecture
 
-The pipeline processes incoming lead records through multiple validation and automation stages.
+<div align="center">
 
-## Pipeline Flow
+<img src="https://raw.githubusercontent.com/raja016956/Salesforce-Data-Integrity-Validation-Pipeline/main/Salesforce%20Project_page-0001.jpg" width="850"/>
 
-1. Load incoming leads from CSV sources
-2. Validate records using predefined business rules
-3. Detect invalid or incomplete records
-4. Log invalid entries into audit files
-5. Generate Jira issue reports for failed batches
-6. Check for existing leads in Salesforce
-7. Create or update Salesforce lead records automatically
+</div>
+
+The architecture demonstrates:
+
+- CSV lead ingestion
+- Validation rule engine
+- Invalid lead handling
+- Salesforce lead existence checks
+- Automated lead creation & updates
+- Jira issue generation
+- End-to-end CRM automation workflow
 
 ---
 
