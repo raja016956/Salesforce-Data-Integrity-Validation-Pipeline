@@ -1,0 +1,6 @@
+FirstName,LastName,Company,Email,Error
+Sara,12,Khan Ltd,sara@gmail.com,Name contains numbers
+Ali,Khan,TechSoft,ali-at-tech.com,Invalid Email Format
+Sara,123,HealthCo,sara@example.com,Name contains numbers
+Ali,Khan,TechSoft,ali-at-tech.com,Invalid Email Format
+B,Chaudhry,SkyNetics,b.chaudhry0@.com,Invalid Email Format

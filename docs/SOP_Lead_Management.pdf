@@ -1,0 +1,39 @@
+SOP: Salesforce Lead Integration & Data Quality Governance
+Version: 1.0
+Owner: Ghulam Fatima
+
+Objective: To ensure 100% data accuracy and zero duplication for all inbound Leads processed via the Python-Salesforce API pipeline.
+
+1. Scope
+This procedure applies to the automated ingestion of Lead data from external sources into the Salesforce CRM environment.
+
+2. Roles & Responsibilities
+Data Analyst (Me): Responsible for executing scripts, monitoring logs, and resolving validation flags.
+System Admin: Responsible for managing API credentials and Salesforce Org permissions.
+
+3. The "DATA" Framework (Standardized Process)
+We follow the Define, Automate, Train, Audit framework to maintain high-quality records.
+
+
+# Step 1: Pre-Ingestion Validation
+
+Before data is sent to Salesforce, the utils/validator.py script must perform the following checks:
+Email Syntax: Must match standard [email protected] format via Regex.
+Name Integrity: LastName must contain at least 2 characters (prevents "N/A" or "test" entries).
+Action: If a record fails, it is logged in the errors.log and blocked from entry to keep the CRM clean.
+
+Step 2: Intelligent Deduplication (The "Upsert" Rule)
+To prevent "inflated pipeline" reports, the system must check for existing records:
+Query Salesforce via SOQL using the Email field as the Unique Identifier.
+If Match Found: Perform a PATCH request to update existing fields.
+If No Match: Perform a POST request to create a new record.
+
+Step 3: Error Handling & Escalation
+If the API returns a 401 (Unauthorized) or 403 (Forbidden) error:
+Check the .env file for expired client_secret credentials.
+Verify the Salesforce Connected App settings.
+If unresolved within 30 minutes, escalate to the System Admin.
+
+4. Continuous Improvement (Audit)
+Monthly Health Check: Run a Salesforce report to identify records with "Incomplete Data" or "Inconsistent Casing".
+Standardization: Ensure all company names follow a consistent format (e.g., "Company Inc." vs "Company").
